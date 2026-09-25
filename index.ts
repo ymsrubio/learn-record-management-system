@@ -8,7 +8,7 @@ app.get('/', (req: Request, res: Response) => {
     res.send('Hello World!');
 });
 
-app.get("/records", (req, res) => {
+app.get("/patients", (req, res) => {
     res.json([{
         name: "alice",
         age: "20"

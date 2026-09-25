@@ -13,12 +13,17 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
+  "type": "module",
   "bugs": {
     "url": "https://github.com/ymsrubio/learn-record-management-system/issues"
   },
   "homepage": "https://github.com/ymsrubio/learn-record-management-system#readme",
   "dependencies": {
     "express": "^5.2.1"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^26.6.2",
+    "typescript": "^7.0.2"
   }
 }

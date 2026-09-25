@@ -6,4 +6,17 @@ app.get('/', (req: Request, res: Response) => {
     res.send('Hello World!');
 });
 
+app.get("/records", (req, res) => {
+    res.json([{
+        name: "alice",
+        age: "20"
+    }, {
+        name: "bob",
+        age: "30"
+    }, {
+        name: "charlie",
+        age: 40
+    }]);
+});
+
 app.listen(3000);

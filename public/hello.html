@@ -8,10 +8,8 @@
 </head>
 
 <body>
-    <p>hello world</p>
-    <p>
-        testing
-    </p>
+    <h1>Patients</h1>
+    <ul id="patientList"></ul>
     <button type="button" onclick="getData()">Try it</button>
 
     <script>
@@ -19,12 +17,22 @@
             const url = "http://localhost:3000/patients";
             try {
                 const response = await fetch(url);
+
                 if (!response.ok) {
                     throw new Error(`Response status: ${response.status}`);
                 }
 
                 const result = await response.json();
                 console.log(result);
+                // https://www.geeksforgeeks.org/javascript/how-to-creating-html-list-from-javascript-array/
+                const data = ["Ryan", "Sam", "Lucas", "Gorge"];
+                const list = document.getElementById("patientList");
+
+                data.forEach((item) => {
+                    const li = document.createElement("li");
+                    li.innerText = item;
+                    list.appendChild(li);
+                });
             } catch (error) {
                 console.error(error.message);
             }

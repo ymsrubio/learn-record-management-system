@@ -25,12 +25,11 @@
                 const result = await response.json();
                 console.log(result);
                 // https://www.geeksforgeeks.org/javascript/how-to-creating-html-list-from-javascript-array/
-                const data = ["Ryan", "Sam", "Lucas", "Gorge"];
                 const list = document.getElementById("patientList");
 
-                data.forEach((item) => {
+                result.forEach((item) => {
                     const li = document.createElement("li");
-                    li.innerText = item;
+                    li.innerText = item.name;
                     list.appendChild(li);
                 });
             } catch (error) {

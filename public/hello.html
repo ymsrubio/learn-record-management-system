@@ -12,6 +12,7 @@
     <ul id="patientList"></ul>
     <button type="button" onclick="getData()">Try it</button>
 
+
     <script>
         async function getData() {
             const url = "http://localhost:3000/patients";
@@ -27,6 +28,11 @@
                 // https://www.geeksforgeeks.org/javascript/how-to-creating-html-list-from-javascript-array/
                 const list = document.getElementById("patientList");
 
+                // https://www.w3schools.com/Jsref/met_node_removechild.asp
+                while (list.hasChildNodes()) {
+                    list.removeChild(list.firstChild);
+                }
+
                 result.forEach((item) => {
                     const li = document.createElement("li");
                     li.innerText = item.name;
@@ -34,7 +40,7 @@
                 });
             } catch (error) {
                 console.error(error.message);
-            }
+            } s
         }
     </script>
 </body>

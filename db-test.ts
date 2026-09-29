@@ -1,25 +1,27 @@
 // https://nodejs.org/api/sqlite.html
 // https://dev.to/otumianempire/introduction-to-sql-using-sqlite-node-sqlite-24gm 
 import { DatabaseSync } from 'node:sqlite';
-const database = new DatabaseSync(':memory:');
+const database = new DatabaseSync('data/dev.db');
 
 // Execute SQL statements from strings.
 database.exec(`
-  CREATE TABLE data(
-    key INTEGER PRIMARY KEY,
-    value TEXT
+  CREATE TABLE patients(
+    id INTEGER PRIMARY KEY,
+    name TEXT,
+    age INTEGER
   ) STRICT
 `);
-// Create a prepared statement to insert data into the database.
-const insert = database.prepare('INSERT INTO data (key, value) VALUES (?, ?)');
-// Execute the prepared statement with bound values.
-insert.run(1, 'hello');
-insert.run(2, 'world');
-// Finalize the prepared statement once it is no longer needed.
+
+const insert = database.prepare('INSERT INTO patients (id, name, age) VALUES (?, ?, ?)');
+
+insert.run(1, 'alice', 18);
+insert.run(2, 'bob', 19);
+insert.run(3, 'charlie', 20);
+
 insert.close();
-// Create a prepared statement to read data from the database.
-const query = database.prepare('SELECT * FROM data ORDER BY key');
-// Execute the prepared statement and log the result set.
+
+const query = database.prepare('SELECT * FROM patients ORDER BY id');
+
 console.log(query.all());
-// Prints: [ { key: 1, value: 'hello' }, { key: 2, value: 'world' } ]
+
 query.close();

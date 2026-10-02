@@ -1,0 +1,14 @@
+// Wrangler's config: tells Cloudflare what this Worker is and what it can reach.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "learn-record-management-system",
+  // The file Cloudflare calls for every request.
+  "main": "worker/index.ts",
+  // Pins which version of the Workers runtime APIs we get, so upgrades never surprise us.
+  "compatibility_date": "2026-10-01",
+  // Static files (later: the built React app). Requests that match a file are served
+  // directly; everything else falls through to the Worker.
+  "assets": {
+    "directory": "./public"
+  }
+}

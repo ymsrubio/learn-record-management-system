@@ -3,3 +3,4 @@ node_modules/
 *.db
 .wrangler/
 .dev.vars
+.DS_Store

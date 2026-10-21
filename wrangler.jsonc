@@ -10,5 +10,16 @@
   // directly; everything else falls through to the Worker.
   "assets": {
     "directory": "./public"
-  }
+  },
+  // A "binding" gives the Worker access to another Cloudflare resource. In code this
+  // database appears as `c.env.DB`. No connection string or password: Cloudflare wires it up.
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "records-db",
+      "database_id": "b7a952cd-d54d-400a-98e7-9bd68842da77",
+      // Where Drizzle writes the .sql migration files that Wrangler applies.
+      "migrations_dir": "drizzle"
+    }
+  ]
 }

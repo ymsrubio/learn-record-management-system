@@ -7,7 +7,7 @@
     "dev": "vite",
     "dev:api": "wrangler dev",
     "build": "vite build",
-    "deploy": "npm run build && wrangler d1 migrations apply DB --remote && wrangler deploy",
+    "deploy": "wrangler d1 migrations apply DB --remote && wrangler deploy",
     "cf-typegen": "wrangler types",
     "db:generate": "drizzle-kit generate",
     "db:migrate:local": "wrangler d1 migrations apply DB --local",

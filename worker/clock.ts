@@ -28,7 +28,10 @@ export function createClock(now: () => Date = () => new Date()): Clock {
     return { now, today: () => clinicDate(now()) };
 }
 
-export type AppEnv = { Bindings: Env; Variables: { clock: Clock } };
+// `user` is set by requireSession (worker/auth/session.ts) on every route except the public ones.
+export type SessionUser = { id: string; name: string; email: string; role: string };
+
+export type AppEnv = { Bindings: Env; Variables: { clock: Clock; user: SessionUser } };
 
 // Every module asks c.var.clock instead of reading the system time.
 export const clockMiddleware = createMiddleware<AppEnv>(async (c, next) => {

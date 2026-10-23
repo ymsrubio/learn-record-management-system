@@ -1,4 +1,7 @@
+import { useQuery } from '@tanstack/react-query';
 import { Route, Routes } from 'react-router';
+import { meQuery } from '@/lib/auth';
+import { SignIn } from '@/screens/SignIn';
 import { AppShell } from '@/components/AppShell';
 import { Dashboard } from '@/screens/Dashboard';
 import { Patients } from '@/screens/Patients';
@@ -6,6 +9,14 @@ import { Schedule } from '@/screens/Schedule';
 import { NotFound } from '@/screens/NotFound';
 
 export function App() {
+    const me = useQuery(meQuery);
+
+    // Waiting for the first answer to "who am I?" shows nothing, so a signed-in Dentist never
+    // sees the sign-in form flash by.
+    if (me.isPending) return <div className="min-h-dvh" aria-busy />;
+    if (me.isError) return <p role="alert" className="p-6">Couldn't load the app. Reload to try again.</p>;
+    if (me.data === null) return <SignIn />;
+
     return (
         <Routes>
             <Route element={<AppShell />}>

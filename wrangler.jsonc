@@ -19,13 +19,13 @@
     "not_found_handling": "single-page-application",
     "run_worker_first": ["/api/*"]
   },
-  // A "binding" gives the Worker access to another Cloudflare resource. In code this
-  // database appears as `c.env.DB`. No connection string or password: Cloudflare wires it up.
   // 'production' by default. The test setup overrides this to 'test', which is the only
   // environment where the X-Test-Now time hook is accepted.
   "vars": {
     "ENVIRONMENT": "production"
   },
+  // A "binding" gives the Worker access to another Cloudflare resource. In code this
+  // database appears as `c.env.DB`. No connection string or password: Cloudflare wires it up.
   "d1_databases": [
     {
       "binding": "DB",

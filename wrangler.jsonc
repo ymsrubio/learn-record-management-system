@@ -6,10 +6,13 @@
   "main": "worker/index.ts",
   // Pins which version of the Workers runtime APIs we get, so upgrades never surprise us.
   "compatibility_date": "2026-10-01",
-  // Static files (later: the built React app). Requests that match a file are served
-  // directly; everything else falls through to the Worker.
+  // The built React app (`npm run build` writes dist/). Requests that match a file are served
+  // directly. Unknown paths get index.html so React Router can handle them, except /api/*,
+  // which always goes to the Worker so a wrong API path stays a 404 and not an HTML page.
   "assets": {
-    "directory": "./public"
+    "directory": "./dist",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
   },
   // A "binding" gives the Worker access to another Cloudflare resource. In code this
   // database appears as `c.env.DB`. No connection string or password: Cloudflare wires it up.

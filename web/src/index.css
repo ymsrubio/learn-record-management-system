@@ -1,0 +1,81 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+/* Design-system tokens (Claude Design: project/ds/dental/tokens.json) under the names
+   shadcn/ui components expect. Components use e.g. `bg-primary`; changing a value here
+   restyles every component. */
+:root {
+  --background: #f5f6f8; /* surface-page */
+  --foreground: #1a1f2b; /* ink */
+  --card: #ffffff; /* surface */
+  --card-foreground: #1a1f2b;
+  --popover: #ffffff;
+  --popover-foreground: #1a1f2b;
+  --primary: #243260; /* primary-deep: buttons, dark headers */
+  --primary-foreground: #ffffff; /* on-primary */
+  --secondary: #eef2fe; /* primary-soft */
+  --secondary-foreground: #243260;
+  --muted: #f9fafb; /* surface-sunken */
+  --muted-foreground: #5b6475; /* ink-muted */
+  --accent: #eef2fe; /* primary-soft: selected nav item */
+  --accent-foreground: #2f55d4;
+  --destructive: #c0362c; /* danger */
+  --border: #e4e7ec;
+  --input: #8a93a3; /* border-strong */
+  --ring: #2f55d4; /* focus */
+  --signal: #2f55d4; /* design "primary": links, active nav, focus */
+  --success: #127a3a;
+  --success-soft: #e8f6ee;
+  --warning: #b45309;
+  --warning-soft: #fdf3e2;
+  --danger-soft: #fdecea;
+  --radius: 12px; /* radius-md */
+}
+
+@theme inline {
+  --font-sans: 'Plus Jakarta Sans', 'Segoe UI', system-ui, sans-serif;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-signal: var(--signal);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-danger-soft: var(--danger-soft);
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --radius-xl: 24px;
+  --shadow-sm: 0 2px 8px rgba(16, 24, 40, 0.05);
+  --shadow-md: 0 8px 24px rgba(16, 24, 40, 0.12);
+  --shadow-nav: 0 -4px 20px rgba(16, 24, 40, 0.06);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+}

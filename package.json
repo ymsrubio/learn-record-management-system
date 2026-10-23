@@ -3,12 +3,12 @@
   "version": "1.0.0",
   "description": "",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "vitest run",
     "dev": "vite",
     "dev:api": "wrangler dev",
     "build": "vite build",
     "deploy": "wrangler d1 migrations apply DB --remote && wrangler deploy",
-    "cf-typegen": "wrangler types",
+    "cf-typegen": "wrangler types --strict-vars=false",
     "db:generate": "drizzle-kit generate",
     "db:migrate:local": "wrangler d1 migrations apply DB --local",
     "typecheck": "tsc --noEmit && tsc --noEmit -p web"
@@ -26,14 +26,17 @@
   },
   "homepage": "https://github.com/ymsrubio/learn-record-management-system#readme",
   "devDependencies": {
+    "@cloudflare/vitest-plugin": "^1.4.7",
     "@tailwindcss/vite": "^4.3.3",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
+    "@types/node": "^26.6.5",
     "@vitejs/plugin-react": "^6.1.2",
     "drizzle-kit": "^0.31.11",
     "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2",
     "vite": "^8.3.5",
+    "vitest": "^4.1.11",
     "wrangler": "^4.146.0"
   },
   "dependencies": {

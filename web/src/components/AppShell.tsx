@@ -1,5 +1,8 @@
+import { useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { NavLink, Link, Outlet } from 'react-router';
-import { CalendarDays, House, Search, Users, type LucideIcon } from 'lucide-react';
+import { CalendarDays, House, LogOut, Search, UserRound, Users, type LucideIcon } from 'lucide-react';
+import { doctorName, meQuery, signOut } from '@/lib/auth';
 import { cn } from '@/lib/utils';
 
 const navItems: { to: string; label: string; icon: LucideIcon; end?: boolean }[] = [
@@ -37,17 +40,23 @@ export function AppShell() {
                         </NavLink>
                     ))}
                 </nav>
+                <div className="mt-auto flex items-center gap-3 pr-4">
+                    <UserBlock />
+                </div>
             </aside>
 
             <header className="sticky top-0 z-10 flex items-center justify-between bg-background px-5 pt-[env(safe-area-inset-top)] md:hidden">
                 <span className="text-lg font-bold">ProSmile</span>
-                <Link
-                    to="/patients"
-                    aria-label="Search patients"
-                    className="flex size-11 items-center justify-center rounded-full text-foreground hover:bg-accent"
-                >
-                    <Search className="size-5" aria-hidden />
-                </Link>
+                <div className="flex items-center">
+                    <Link
+                        to="/patients"
+                        aria-label="Search patients"
+                        className="flex size-11 items-center justify-center rounded-full text-foreground hover:bg-accent"
+                    >
+                        <Search className="size-5" aria-hidden />
+                    </Link>
+                    <PhoneMenu />
+                </div>
             </header>
 
             <main className="mx-auto max-w-[1280px] px-5 pb-28 pt-4 md:px-6 md:pb-8 md:pt-8">
@@ -88,5 +97,72 @@ function SearchLink({ className }: { className?: string }) {
             <Search className="size-4" aria-hidden />
             Search patients
         </Link>
+    );
+}
+
+// Signs out: the server ends the session row, then every cached answer except "who am I" is dropped so the next
+// person on this device cannot see the last Dentist's data, and App swaps back to the sign-in screen.
+function useSignOut() {
+    const queryClient = useQueryClient();
+    return async () => {
+        await signOut();
+        queryClient.removeQueries({ predicate: (query) => query.queryKey[0] !== meQuery.queryKey[0] });
+        queryClient.setQueryData(meQuery.queryKey, null);
+    };
+}
+
+// Sidebar (768px and up): the name and Sign out sit at the bottom of the side nav.
+function UserBlock() {
+    const me = useQuery(meQuery).data;
+    const handleSignOut = useSignOut();
+    return (
+        <div className="flex min-w-0 flex-1 items-center gap-3 px-2">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-white/10">
+                <UserRound className="size-5" aria-hidden />
+            </span>
+            <span className="min-w-0 flex-1 truncate text-sm font-semibold">{me ? doctorName(me.name) : ''}</span>
+            <button
+                type="button"
+                onClick={handleSignOut}
+                aria-label="Sign out"
+                className="flex size-11 shrink-0 items-center justify-center rounded-full text-[#c9d5fb] hover:bg-white/10"
+            >
+                <LogOut className="size-5" aria-hidden />
+            </button>
+        </div>
+    );
+}
+
+// Phone: a menu button in the top bar opens a small panel with the name and Sign out.
+function PhoneMenu() {
+    const me = useQuery(meQuery).data;
+    const handleSignOut = useSignOut();
+    const [open, setOpen] = useState(false);
+    return (
+        <div className="relative">
+            <button
+                type="button"
+                aria-label="Account menu"
+                aria-expanded={open}
+                onClick={() => setOpen((o) => !o)}
+                className="flex size-11 items-center justify-center rounded-full text-foreground hover:bg-accent"
+            >
+                <UserRound className="size-5" aria-hidden />
+            </button>
+            {open && (
+                <div role="menu" className="absolute right-0 top-12 z-20 w-56 rounded-md bg-card p-2 shadow-md">
+                    <p className="px-3 py-2 text-sm font-semibold">{me ? doctorName(me.name) : ''}</p>
+                    <button
+                        type="button"
+                        role="menuitem"
+                        onClick={handleSignOut}
+                        className="flex h-11 w-full items-center gap-3 rounded-md px-3 text-sm font-medium hover:bg-accent"
+                    >
+                        <LogOut className="size-5" aria-hidden />
+                        Sign out
+                    </button>
+                </div>
+            )}
+        </div>
     );
 }

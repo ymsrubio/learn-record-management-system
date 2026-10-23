@@ -1,0 +1,2 @@
+# Copy to .dev.vars (gitignored) for `npm run dev:api`. Any long random string works locally.
+BETTER_AUTH_SECRET=local-dev-secret-change-me-0123456789abcdef

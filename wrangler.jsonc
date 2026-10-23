@@ -21,6 +21,11 @@
   },
   // A "binding" gives the Worker access to another Cloudflare resource. In code this
   // database appears as `c.env.DB`. No connection string or password: Cloudflare wires it up.
+  // 'production' by default. The test setup overrides this to 'test', which is the only
+  // environment where the X-Test-Now time hook is accepted.
+  "vars": {
+    "ENVIRONMENT": "production"
+  },
   "d1_databases": [
     {
       "binding": "DB",

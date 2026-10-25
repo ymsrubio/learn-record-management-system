@@ -1,0 +1,277 @@
+import { useState, type FormEvent } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Link, useParams } from 'react-router';
+import { CalendarPlus, ChevronLeft, ClipboardCheck, Hourglass, Loader2, Pencil, Phone, TriangleAlert } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Field } from '@/components/Field';
+import { api } from '@/lib/api';
+import { clinicParts, formatDate, telHref } from '@/lib/format';
+import { patientRecordQuery, saveResult, type FieldErrors } from '@/lib/queries';
+
+const statusLabel = { scheduled: 'Scheduled', completed: 'Completed', cancelled: 'Cancelled', no_show: 'No-show' } as const;
+
+// docs/design-brief.md section 4, canvas record-phone-pending / record-phone-no-appointments.
+// Header, Medical History alerts strip, Details, an empty Odontogram placeholder and the timeline.
+export function PatientRecord() {
+    const { id = '' } = useParams();
+    const { data, isPending, error, refetch } = useQuery(patientRecordQuery(id));
+    const [editing, setEditing] = useState(false);
+
+    if (isPending) return <p className="text-muted-foreground">Loading Patient Record…</p>;
+    if (error) {
+        return (
+            <div className="rounded-lg bg-[var(--danger-soft)] p-4 text-destructive">
+                <p className="font-semibold">Couldn't load this Patient Record.</p>
+                <Button variant="secondary" className="mt-3" onClick={() => refetch()}>
+                    Try again
+                </Button>
+            </div>
+        );
+    }
+    if (data === null) {
+        return (
+            <div>
+                <h1 className="text-2xl font-bold">Patient not found</h1>
+                <Link to="/patients" className="mt-2 inline-block font-bold text-signal">
+                    Back to Patients
+                </Link>
+            </div>
+        );
+    }
+
+    const { patient, alerts, timeline } = data;
+    const first = patient.fullName.split(/\s+/)[0];
+
+    return (
+        <div className="flex flex-col gap-4 pb-20 md:pb-0">
+            <Link to="/patients" className="-ml-2 flex h-11 w-fit items-center gap-1 px-2 font-bold text-signal">
+                <ChevronLeft className="size-5" aria-hidden />
+                Patients
+            </Link>
+
+            <section className="flex flex-col gap-1 rounded-lg bg-card px-4 pb-2 pt-3 shadow-sm" aria-label="Patient">
+                <div className="flex flex-wrap items-center gap-2">
+                    <h1 className="text-2xl font-bold leading-[30px] tracking-tight">{patient.fullName}</h1>
+                    {patient.flags.pendingIntake && (
+                        <span className="inline-flex h-6 items-center gap-1 rounded-full bg-warning-soft px-2 text-xs font-semibold text-warning">
+                            <Hourglass className="size-3.5" aria-hidden />
+                            Pending Intake
+                        </span>
+                    )}
+                    {patient.flags.archived && (
+                        <span className="inline-flex h-6 items-center rounded-full bg-muted px-2 text-xs font-semibold text-muted-foreground">
+                            Archived
+                        </span>
+                    )}
+                </div>
+                <p className="text-sm text-muted-foreground">
+                    {patient.birthdate
+                        ? `${patient.age} years old · born ${formatDate(patient.birthdate)}`
+                        : 'No birthdate yet'}
+                </p>
+                {patient.mobilePhone && (
+                    <a
+                        href={telHref(patient.mobilePhone)}
+                        className="flex h-11 w-fit items-center gap-2 font-bold text-signal"
+                    >
+                        <Phone className="size-[18px]" aria-hidden />
+                        {patient.mobilePhone}
+                    </a>
+                )}
+            </section>
+
+            <section
+                aria-label="Medical History alerts"
+                className="flex items-start gap-2 rounded-lg bg-warning-soft px-4 py-3 font-bold text-warning"
+            >
+                <TriangleAlert className="mt-1 size-[18px] shrink-0" aria-hidden />
+                <span>
+                    {alerts.length > 0 ? alerts.join(' · ') : 'No Medical History yet. Do the Intake before treating.'}
+                </span>
+            </section>
+
+            <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] md:items-start">
+                <div className="flex flex-col gap-4">
+                    {patient.flags.pendingIntake && (
+                        <section className="flex flex-col gap-3 rounded-lg bg-card p-4 shadow-sm">
+                            <h2 className="flex items-center gap-3 font-bold">
+                                <span className="flex size-10 items-center justify-center rounded-full bg-accent text-signal">
+                                    <ClipboardCheck className="size-5" aria-hidden />
+                                </span>
+                                Intake not done yet
+                            </h2>
+                            <p>At the clinic, hand {first} the phone to fill in:</p>
+                            <ul className="list-disc pl-5 text-muted-foreground">
+                                <li>Personal details</li>
+                                <li>Medical History</li>
+                                <li>Consent under the Data Privacy Act</li>
+                            </ul>
+                        </section>
+                    )}
+
+                    <section className="overflow-hidden rounded-lg bg-card shadow-sm" aria-label="Details">
+                        <div className="flex items-center justify-between pr-2">
+                            <h2 className="px-4 pb-1 pt-3 font-bold">Details</h2>
+                            {!editing && (
+                                <Button variant="ghost" size="default" onClick={() => setEditing(true)}>
+                                    <Pencil aria-hidden />
+                                    Edit details
+                                </Button>
+                            )}
+                        </div>
+                        {editing ? (
+                            <EditDetails
+                                id={patient.id}
+                                initial={patient}
+                                onDone={() => setEditing(false)}
+                            />
+                        ) : (
+                            <dl>
+                                <Detail label="Full name" value={patient.fullName} />
+                                <Detail label="Phone" value={patient.mobilePhone} />
+                                <Detail label="Birthdate" value={patient.birthdate && formatDate(patient.birthdate)} />
+                                <Detail label="Address" value={null} />
+                                <Detail label="Consent" value={null} last />
+                            </dl>
+                        )}
+                    </section>
+                </div>
+
+                <div className="flex flex-col gap-4">
+                    <section
+                        aria-label="Odontogram"
+                        className="rounded-lg border border-dashed border-input p-4 text-muted-foreground"
+                    >
+                        <h2 className="font-bold text-foreground">Odontogram</h2>
+                        <p className="text-sm">The tooth chart will appear here.</p>
+                    </section>
+
+                    <section aria-label="Timeline" className="flex flex-col gap-2">
+                        <div className="mt-2 flex items-baseline justify-between gap-3">
+                            <h2 className="text-xl font-bold">History</h2>
+                            <span className="text-sm text-muted-foreground">
+                                {timeline.length === 1 ? '1 Appointment' : `${timeline.length} Appointments`}
+                            </span>
+                        </div>
+                        {timeline.length === 0 && (
+                            <div className="rounded-lg bg-card p-4 text-muted-foreground shadow-sm">
+                                <p>No appointments yet.</p>
+                                <Button asChild variant="secondary" className="mt-3">
+                                    <Link to={`/appointments/new?patientId=${patient.id}`}>
+                                        <CalendarPlus aria-hidden />
+                                        Create appointment
+                                    </Link>
+                                </Button>
+                            </div>
+                        )}
+                        {timeline.map((a) => {
+                            const when = clinicParts(a.startAt);
+                            return (
+                                <Link
+                                    key={a.id}
+                                    to={`/appointments/${a.id}`}
+                                    className="flex items-start gap-3.5 rounded-lg bg-card px-4 py-3 shadow-sm"
+                                >
+                                    <span className="flex w-9 shrink-0 flex-col items-center">
+                                        <span className="text-[22px] font-bold leading-[26px]">{when.day}</span>
+                                        <span className="text-[11px] font-bold leading-[14px] tracking-[0.08em] text-muted-foreground">
+                                            {when.month}
+                                        </span>
+                                    </span>
+                                    <span className="flex min-w-0 flex-1 flex-col gap-1.5">
+                                        <span className="flex items-center justify-between gap-2">
+                                            <span className="truncate font-bold">{a.reason ?? 'Appointment'}</span>
+                                            <span className="shrink-0 rounded-full bg-accent px-2 py-0.5 text-xs font-bold text-signal">
+                                                {statusLabel[a.status]}
+                                            </span>
+                                        </span>
+                                        <span className="text-sm text-muted-foreground">{when.time}</span>
+                                    </span>
+                                </Link>
+                            );
+                        })}
+                    </section>
+                </div>
+            </div>
+
+            <div className="fixed inset-x-0 bottom-[76px] z-10 flex gap-2 bg-background px-4 pb-3 pt-2 md:static md:bg-transparent md:p-0">
+                <Button asChild variant="secondary" size="icon" className="size-12" aria-label="Create appointment">
+                    <Link to={`/appointments/new?patientId=${patient.id}`}>
+                        <CalendarPlus aria-hidden />
+                    </Link>
+                </Button>
+                {patient.flags.pendingIntake && (
+                    <Button asChild className="h-12 flex-1 text-base font-bold md:max-w-xs">
+                        <Link to={`/patients/${patient.id}/intake`}>
+                            <ClipboardCheck aria-hidden />
+                            Start Intake
+                        </Link>
+                    </Button>
+                )}
+            </div>
+        </div>
+    );
+}
+
+function Detail({ label, value, last }: { label: string; value?: string | null; last?: boolean }) {
+    return (
+        <div className={`flex flex-col px-4 py-2 ${last ? 'pb-3' : 'border-b'}`}>
+            <dt className="text-[11px] font-semibold uppercase leading-4 tracking-[0.06em] text-muted-foreground">{label}</dt>
+            <dd className={value ? '' : 'text-muted-foreground'}>{value || 'Not recorded yet'}</dd>
+        </div>
+    );
+}
+
+type Details = { fullName: string; mobilePhone: string | null; birthdate: string | null };
+
+function EditDetails({ id, initial, onDone }: { id: string; initial: Details; onDone: () => void }) {
+    const queryClient = useQueryClient();
+    const [fullName, setFullName] = useState(initial.fullName);
+    const [mobilePhone, setMobilePhone] = useState(initial.mobilePhone ?? '');
+    const [birthdate, setBirthdate] = useState(initial.birthdate ?? '');
+    const [errors, setErrors] = useState<FieldErrors>({});
+
+    const save = useMutation({
+        mutationFn: async () => saveResult(await api.api.patients[':id'].$patch({ param: { id }, json: { fullName, mobilePhone, birthdate: birthdate || null } })),
+        onSuccess: async (result) => {
+            if (!result.ok) return setErrors(result.errors);
+            await queryClient.invalidateQueries({ queryKey: ['patients'] });
+            onDone();
+        },
+    });
+
+    function onSubmit(event: FormEvent) {
+        event.preventDefault();
+        if (!save.isPending) save.mutate();
+    }
+
+    return (
+        <form onSubmit={onSubmit} noValidate className="flex flex-col gap-4 p-4 pt-2">
+            <Field id="edit-name" label="Full name" value={fullName} onChange={(e) => setFullName(e.target.value)} error={errors.fullName} />
+            <Field
+                id="edit-phone"
+                label="Phone"
+                type="tel"
+                inputMode="tel"
+                value={mobilePhone}
+                onChange={(e) => setMobilePhone(e.target.value)}
+                error={errors.mobilePhone}
+            />
+            <Field id="edit-birthdate" label="Birthdate" type="date" value={birthdate} onChange={(e) => setBirthdate(e.target.value)} error={errors.birthdate} />
+            {save.isError && (
+                <p role="alert" className="text-destructive">
+                    Couldn't save. Try again.
+                </p>
+            )}
+            <div className="flex gap-2">
+                <Button type="button" variant="secondary" className="h-12 flex-1" onClick={onDone}>
+                    Cancel
+                </Button>
+                <Button type="submit" disabled={save.isPending} className="h-12 flex-1">
+                    {save.isPending && <Loader2 className="animate-spin" aria-hidden />}
+                    Save details
+                </Button>
+            </div>
+        </form>
+    );
+}

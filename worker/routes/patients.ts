@@ -1,5 +1,6 @@
 import { desc, eq } from 'drizzle-orm';
 import { Hono } from 'hono';
+import { validator } from 'hono/validator';
 import { ageOn, type AppEnv } from '../clock';
 import { auditOnCreate, auditOnUpdate } from '../db/audit';
 import { getDb } from '../db/client';
@@ -19,38 +20,46 @@ export const patientsRoutes = new Hono<AppEnv>()
     })
     // Quick add: a phone call gives a name and a number. The Patient is Pending Intake because
     // intake_completed_at stays null. An Appointment may ride along in the same request.
-    .post('/', async (c) => {
-        const parsed = parseQuickAdd(await c.req.json().catch(() => null));
-        if (!parsed.ok) return c.json({ errors: parsed.errors }, 400);
-        const { fullName, mobilePhone, appointment } = parsed.value;
+    // validator() runs parseQuickAdd before the handler: bad input gets a 400 with a message per
+    // field and the handler never runs. Its return value is what c.req.valid('json') gives back,
+    // and the front-end's RPC client reads the same type, so the request body is type-checked there too.
+    .post(
+        '/',
+        validator('json', (body, c) => {
+            const parsed = parseQuickAdd(body);
+            return parsed.ok ? parsed.value : c.json({ errors: parsed.errors }, 400);
+        }),
+        async (c) => {
+            const { fullName, mobilePhone, appointment } = c.req.valid('json');
 
-        const db = getDb(c.env);
-        const patientId = crypto.randomUUID();
-        const patientRow = {
-            id: patientId,
-            fullName,
-            mobilePhone,
-            nameSearch: normalizeName(fullName),
-            phoneSearch: normalizePhone(mobilePhone),
-            ...auditOnCreate(c),
-        };
-        // db.batch sends both inserts to D1 as one transaction: both rows exist or neither does.
-        const appointmentRow = appointment && {
-            id: crypto.randomUUID(),
-            patientId,
-            startAt: appointmentStart(appointment),
-            reason: appointment.reason,
-            ...auditOnCreate(c),
-        };
-        if (appointmentRow) {
-            await db.batch([db.insert(patients).values(patientRow), db.insert(appointments).values(appointmentRow)]);
-        } else {
-            await db.insert(patients).values(patientRow);
-        }
+            const db = getDb(c.env);
+            const patientId = crypto.randomUUID();
+            const patientRow = {
+                id: patientId,
+                fullName,
+                mobilePhone,
+                nameSearch: normalizeName(fullName),
+                phoneSearch: normalizePhone(mobilePhone),
+                ...auditOnCreate(c),
+            };
+            // db.batch sends both inserts to D1 as one transaction: both rows exist or neither does.
+            const appointmentRow = appointment && {
+                id: crypto.randomUUID(),
+                patientId,
+                startAt: appointmentStart(appointment),
+                reason: appointment.reason,
+                ...auditOnCreate(c),
+            };
+            if (appointmentRow) {
+                await db.batch([db.insert(patients).values(patientRow), db.insert(appointments).values(appointmentRow)]);
+            } else {
+                await db.insert(patients).values(patientRow);
+            }
 
-        const [patient] = await db.select().from(patients).where(eq(patients.id, patientId));
-        return c.json({ patient: present(patient, c.var.clock.today()), appointmentId: appointmentRow?.id ?? null }, 201);
-    })
+            const [patient] = await db.select().from(patients).where(eq(patients.id, patientId));
+            return c.json({ patient: present(patient, c.var.clock.today()), appointmentId: appointmentRow?.id ?? null }, 201);
+        },
+    )
     // The Patient Record. Opening it also writes the recently seen entry (an upsert on user + patient).
     .get('/:id', async (c) => {
         const db = getDb(c.env);
@@ -82,27 +91,32 @@ export const patientsRoutes = new Hono<AppEnv>()
             })),
         });
     })
-    .patch('/:id', async (c) => {
-        const parsed = parseDetails(await c.req.json().catch(() => null), c.var.clock.today());
-        if (!parsed.ok) return c.json({ errors: parsed.errors }, 400);
-        const { fullName, mobilePhone, birthdate } = parsed.value;
+    .patch(
+        '/:id',
+        validator('json', (body, c) => {
+            const parsed = parseDetails(body, c.var.clock.today());
+            return parsed.ok ? parsed.value : c.json({ errors: parsed.errors }, 400);
+        }),
+        async (c) => {
+            const { fullName, mobilePhone, birthdate } = c.req.valid('json');
 
-        const db = getDb(c.env);
-        const [updated] = await db
-            .update(patients)
-            .set({
-                fullName,
-                mobilePhone,
-                birthdate,
-                nameSearch: normalizeName(fullName),
-                phoneSearch: normalizePhone(mobilePhone),
-                ...auditOnUpdate(c),
-            })
-            .where(eq(patients.id, c.req.param('id')))
-            .returning();
-        if (!updated) return c.json({ error: 'Patient not found' }, 404);
-        return c.json({ patient: present(updated, c.var.clock.today()) });
-    });
+            const db = getDb(c.env);
+            const [updated] = await db
+                .update(patients)
+                .set({
+                    fullName,
+                    mobilePhone,
+                    birthdate,
+                    nameSearch: normalizeName(fullName),
+                    phoneSearch: normalizePhone(mobilePhone),
+                    ...auditOnUpdate(c),
+                })
+                .where(eq(patients.id, c.req.param('id')))
+                .returning();
+            if (!updated) return c.json({ error: 'Patient not found' }, 404);
+            return c.json({ patient: present(updated, c.var.clock.today()) });
+        },
+    );
 
 type PatientRow = typeof patients.$inferSelect;
 

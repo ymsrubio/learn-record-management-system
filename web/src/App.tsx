@@ -4,6 +4,8 @@ import { meQuery } from '@/lib/auth';
 import { SignIn } from '@/screens/SignIn';
 import { AppShell } from '@/components/AppShell';
 import { Dashboard } from '@/screens/Dashboard';
+import { AddPatient } from '@/screens/AddPatient';
+import { PatientRecord } from '@/screens/PatientRecord';
 import { Patients } from '@/screens/Patients';
 import { Schedule } from '@/screens/Schedule';
 import { NotFound } from '@/screens/NotFound';
@@ -22,6 +24,8 @@ export function App() {
             <Route element={<AppShell />}>
                 <Route index element={<Dashboard />} />
                 <Route path="patients" element={<Patients />} />
+                <Route path="patients/new" element={<AddPatient />} />
+                <Route path="patients/:id" element={<PatientRecord />} />
                 <Route path="schedule" element={<Schedule />} />
                 <Route path="*" element={<NotFound />} />
             </Route>

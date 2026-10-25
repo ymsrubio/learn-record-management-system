@@ -6,6 +6,7 @@ import { appointmentsRoutes } from './routes/appointments';
 import { guardiansRoutes, intakeRoutes } from './routes/intake';
 import { patientSearchRoutes } from './routes/patient-search';
 import { patientsRoutes } from './routes/patients';
+import { scheduleRoutes } from './routes/schedule';
 
 // One Hono app holds every API route. Cloudflare calls `app.fetch(request)` for each
 // request, and the app returns a Response. There is no server and no app.listen().
@@ -32,7 +33,8 @@ const routes = app
     .route('/api/patients', patientsRoutes)
     .route('/api/patients', intakeRoutes)
     .route('/api/guardians', guardiansRoutes)
-    .route('/api/appointments', appointmentsRoutes);
+    .route('/api/appointments', appointmentsRoutes)
+    .route('/api/schedule', scheduleRoutes);
 
 export type AppType = typeof routes;
 

@@ -1,5 +1,5 @@
-import { desc, eq } from 'drizzle-orm';
-import { Hono } from 'hono';
+import { and, desc, eq, isNull, isNotNull } from 'drizzle-orm';
+import { Hono, type Context } from 'hono';
 import { validator } from 'hono/validator';
 import { ageOn, type AppEnv } from '../clock';
 import { auditOnCreate, auditOnUpdate } from '../db/audit';
@@ -8,6 +8,7 @@ import { appointments, patients, patientViews } from '../db/schema';
 import { intakeSummary } from '../intake/record';
 import { loadNotes } from '../notes/load';
 import { normalizeName, normalizePhone } from '../patients/normalize';
+import { PATIENT_ARCHIVED } from '../patients/archived';
 import { appointmentStart, parseDetails, parseQuickAdd } from '../patients/validate';
 
 // A sub-app for everything under /api/patients. worker/index.ts mounts it with
@@ -105,6 +106,9 @@ export const patientsRoutes = new Hono<AppEnv>()
             const { fullName, mobilePhone, birthdate } = c.req.valid('json');
 
             const db = getDb(c.env);
+            const [current] = await db.select({ archivedAt: patients.archivedAt }).from(patients).where(eq(patients.id, c.req.param('id')));
+            if (!current) return c.json({ error: 'Patient not found' }, 404);
+            if (current.archivedAt) return c.json(PATIENT_ARCHIVED, 409);
             const [updated] = await db
                 .update(patients)
                 .set({
@@ -120,7 +124,38 @@ export const patientsRoutes = new Hono<AppEnv>()
             if (!updated) return c.json({ error: 'Patient not found' }, 404);
             return c.json({ patient: present(updated, c.var.clock.today()) });
         },
-    );
+    )
+    // Archive and Restore set and clear archived_at. They are the only writes an Archived Patient
+    // accepts (Restore) or that touch it at all, and neither is a delete. Repeating one is a no-op,
+    // so a retried tap converges on the same state.
+    .post('/:id/archive', async (c) => {
+        const db = getDb(c.env);
+        const id = c.req.param('id');
+        const [updated] = await db
+            .update(patients)
+            .set({ archivedAt: c.var.clock.now(), ...auditOnUpdate(c) })
+            .where(and(eq(patients.id, id), isNull(patients.archivedAt)))
+            .returning();
+        return respondWithPatient(c, db, id, updated);
+    })
+    .post('/:id/restore', async (c) => {
+        const db = getDb(c.env);
+        const id = c.req.param('id');
+        const [updated] = await db
+            .update(patients)
+            .set({ archivedAt: null, ...auditOnUpdate(c) })
+            .where(and(eq(patients.id, id), isNotNull(patients.archivedAt)))
+            .returning();
+        return respondWithPatient(c, db, id, updated);
+    });
+
+// The update returns a row only when it changed something. Otherwise the Patient is already in the
+// requested state (return it as is) or does not exist.
+async function respondWithPatient(c: Context<AppEnv>, db: ReturnType<typeof getDb>, id: string, changed: PatientRow | undefined) {
+    const patient = changed ?? (await db.select().from(patients).where(eq(patients.id, id)))[0];
+    if (!patient) return c.json({ error: 'Patient not found' }, 404);
+    return c.json({ patient: present(patient, c.var.clock.today()) });
+}
 
 type PatientRow = typeof patients.$inferSelect;
 

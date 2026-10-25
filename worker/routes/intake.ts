@@ -6,6 +6,7 @@ import { auditOnCreate, auditOnUpdate } from '../db/audit';
 import { getDb } from '../db/client';
 import { dentalHistories, guardians, medicalHistories, patients } from '../db/schema';
 import { parseIntake } from '../intake/validate';
+import { PATIENT_ARCHIVED } from '../patients/archived';
 import { normalizeName, normalizePhone } from '../patients/normalize';
 
 // POST /api/patients/:id/intake saves the whole Intake as one unit. worker/index.ts mounts this
@@ -23,6 +24,7 @@ export const intakeRoutes = new Hono<AppEnv>().post(
         const id = c.req.param('id');
         const [patient] = await db.select().from(patients).where(eq(patients.id, id));
         if (!patient) return c.json({ error: 'Patient not found' }, 404);
+        if (patient.archivedAt) return c.json(PATIENT_ARCHIVED, 409);
 
         const { personal, medical, dental } = input;
         const audit = auditOnCreate(c);

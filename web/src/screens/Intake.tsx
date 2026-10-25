@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useParams } from 'react-router';
 import { CheckCircle2, ChevronLeft, Loader2 } from 'lucide-react';
@@ -15,6 +15,9 @@ import { ConditionsStep, ConsentStep, DentalStep, GuardianStep, MedicalStep, Per
 export function Intake() {
     const { id = '' } = useParams();
     const { data, isPending, error } = useQuery(patientRecordQuery(id));
+    // Saving the Intake refetches the record, which is then no longer Pending Intake. Once the form
+    // has been shown, keep showing it so the "Intake complete" screen can appear.
+    const opened = useRef(false);
 
     if (isPending) return <p className="text-muted-foreground">Loading…</p>;
     if (error) return <p role="alert" className="text-destructive">Couldn't load this Patient. Reload to try again.</p>;
@@ -26,7 +29,8 @@ export function Intake() {
             </div>
         );
     }
-    if (!data.patient.flags.pendingIntake) {
+    if (data.patient.flags.pendingIntake) opened.current = true;
+    if (!opened.current) {
         return (
             <div className="mx-auto flex max-w-[480px] flex-col gap-3">
                 <h1 className="text-2xl font-bold">Intake already done</h1>
@@ -38,6 +42,11 @@ export function Intake() {
 
     const { patient } = data;
     return <IntakeFlow id={id} prefill={{ fullName: patient.fullName, mobilePhone: patient.mobilePhone ?? '', birthdate: patient.birthdate ?? '' }} />;
+}
+
+// After a failed Next, bring the first error into view so a phone user sees what to fix.
+function showFirstError() {
+    requestAnimationFrame(() => document.querySelector('[id$="-error"]')?.scrollIntoView({ block: 'center', behavior: 'smooth' }));
 }
 
 function IntakeFlow({ id, prefill }: { id: string; prefill: { fullName: string; mobilePhone: string; birthdate: string } }) {
@@ -52,7 +61,9 @@ function IntakeFlow({ id, prefill }: { id: string; prefill: { fullName: string; 
     const steps = stepsFor(form);
     const index = steps.indexOf(step);
 
-    useEffect(() => window.scrollTo(0, 0), [step]);
+    useEffect(() => {
+        window.scrollTo(0, 0);
+    }, [step]);
 
     const set: StepProps['set'] = (section, key, value) => {
         setForm((f) => ({ ...f, [section]: { ...f[section], [key]: value } }));
@@ -79,6 +90,7 @@ function IntakeFlow({ id, prefill }: { id: string; prefill: { fullName: string; 
         const mine = errorsFor(step, allErrors(form));
         setShown(mine);
         if (Object.keys(mine).length === 0) setStep(steps[index + 1]);
+        else showFirstError();
     }
 
     function submit() {
@@ -87,6 +99,7 @@ function IntakeFlow({ id, prefill }: { id: string; prefill: { fullName: string; 
             setShown(all);
             const first = steps.find((s) => Object.keys(errorsFor(s, all)).length > 0);
             if (first) setStep(first);
+            showFirstError();
             return;
         }
         if (!save.isPending) save.mutate();

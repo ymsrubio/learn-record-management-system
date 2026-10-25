@@ -4,6 +4,7 @@ import { createAuth } from './auth/auth';
 import { requireSession } from './auth/session';
 import { appointmentsRoutes } from './routes/appointments';
 import { guardiansRoutes, intakeRoutes } from './routes/intake';
+import { patientSearchRoutes } from './routes/patient-search';
 import { patientsRoutes } from './routes/patients';
 
 // One Hono app holds every API route. Cloudflare calls `app.fetch(request)` for each
@@ -27,6 +28,7 @@ const routes = app
         const { id, name, email, role } = c.var.user;
         return c.json({ id, name, email, role });
     })
+    .route('/api/patients', patientSearchRoutes)
     .route('/api/patients', patientsRoutes)
     .route('/api/patients', intakeRoutes)
     .route('/api/guardians', guardiansRoutes)

@@ -2,12 +2,12 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Search, UserPlus, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { patientsQuery } from '@/lib/queries';
+import { patientSearchQuery } from '@/lib/queries';
+import { useDebounced } from '@/lib/useDebounced';
 
 export type PickedPatient = { id: string; fullName: string };
 
-// A search box over the Patient list. At one clinic's scale the browser can filter the whole list;
-// a server-side search can replace this later.
+// A search box over GET /api/patients/search, the same ranked search as the Patients screen.
 export function PatientPicker({
     value,
     onChange,
@@ -20,7 +20,9 @@ export function PatientPicker({
     error?: string;
 }) {
     const [text, setText] = useState('');
-    const { data, isPending, isError } = useQuery(patientsQuery);
+    const typed = text.trim();
+    const q = useDebounced(typed);
+    const { data, isFetching, isError } = useQuery({ ...patientSearchQuery(q, false), enabled: q !== '' });
 
     if (value) {
         return (
@@ -41,13 +43,7 @@ export function PatientPicker({
         );
     }
 
-    const words = text.toLowerCase().split(/\s+/).filter(Boolean);
-    const matches = (data ?? [])
-        .filter((p) => {
-            const haystack = `${p.fullName} ${p.mobilePhone ?? ''}`.toLowerCase();
-            return words.every((w) => haystack.includes(w));
-        })
-        .slice(0, 6);
+    const matches = (data ?? []).slice(0, 6);
 
     return (
         <div className="flex flex-col gap-2">
@@ -68,10 +64,11 @@ export function PatientPicker({
                 />
             </div>
             {error && <p className="text-sm text-destructive">{error}</p>}
-            {isPending && <p className="text-sm text-muted-foreground">Loading patients…</p>}
             {isError && <p className="text-sm text-destructive">Couldn't load patients.</p>}
-            {text.trim() && data && matches.length === 0 && <p className="text-sm text-muted-foreground">No patient matches “{text.trim()}”.</p>}
-            {text.trim() && (
+            {typed && data && q === typed && !isFetching && matches.length === 0 && (
+                <p className="text-sm text-muted-foreground">No patient matches “{typed}”.</p>
+            )}
+            {typed && (
                 <ul className="flex flex-col overflow-hidden rounded-lg bg-card shadow-sm">
                     {matches.map((p) => (
                         <li key={p.id} className="border-b last:border-b-0">

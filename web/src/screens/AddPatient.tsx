@@ -1,11 +1,13 @@
 import { useState, type FormEvent } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import { Info, Loader2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Field } from '@/components/Field';
 import { api } from '@/lib/api';
-import { saveResult, type FieldErrors } from '@/lib/queries';
+import { PatientRow } from '@/components/PatientRow';
+import { duplicatesQuery, saveResult, type FieldErrors } from '@/lib/queries';
+import { useDebounced } from '@/lib/useDebounced';
 
 type Created = { patient: { id: string }; appointmentId: string | null };
 
@@ -24,6 +26,13 @@ export function AddPatient() {
     const [reason, setReason] = useState('');
     const [errors, setErrors] = useState<FieldErrors>({});
     const [saved, setSaved] = useState<Created | null>(null);
+
+    // Duplicate check: asks the server while the name or phone is typed, so a returning Patient
+    // is offered instead of being entered twice.
+    const dupName = useDebounced(fullName.trim());
+    const dupPhone = useDebounced(mobilePhone.trim());
+    const askDuplicates = dupName.length >= 2 || dupPhone.replace(/\D/g, '').length >= 4;
+    const duplicates = useQuery({ ...duplicatesQuery(dupName, dupPhone), enabled: askDuplicates });
 
     const save = useMutation({
         // TanStack Query's useMutation wraps a write: it tracks pending/error state for us.
@@ -104,6 +113,23 @@ export function AddPatient() {
                 onChange={(e) => setMobilePhone(e.target.value)}
                 error={errors.mobilePhone}
             />
+
+            {askDuplicates && duplicates.data && duplicates.data.length > 0 && (
+                <section aria-label="Possible existing patient" className="flex flex-col gap-3 rounded-lg bg-warning-soft p-3">
+                    <h2 className="text-sm font-bold text-warning">Possible existing patient</h2>
+                    {duplicates.data.map((p) => (
+                        <PatientRow
+                            key={p.id}
+                            patient={p}
+                            action={
+                                <Button asChild variant="secondary" className="h-11 w-full font-bold">
+                                    <Link to={`/appointments/new?patientId=${p.id}`}>Use this patient</Link>
+                                </Button>
+                            }
+                        />
+                    ))}
+                </section>
+            )}
 
             <label className="flex min-h-16 cursor-pointer items-center gap-3 rounded-lg bg-card px-4 py-3 shadow-sm">
                 <input

@@ -6,6 +6,8 @@
   "main": "worker/index.ts",
   // Pins which version of the Workers runtime APIs we get, so upgrades never surprise us.
   "compatibility_date": "2026-10-01",
+  // Better Auth uses AsyncLocalStorage and Node's crypto, which Workers only offer with this flag.
+  "compatibility_flags": ["nodejs_compat"],
   // Runs before every `wrangler deploy`, `versions upload` and `wrangler dev`, so dist/ always
   // exists (Cloudflare's own build never runs `vite build`).
   "build": {
@@ -40,7 +42,10 @@
   // empty database. Apply the schema to it by name: wrangler d1 migrations apply records-db-preview --remote
   "previews": {
     "vars": {
-      "ENVIRONMENT": "preview"
+      "ENVIRONMENT": "preview",
+      // Throwaway: it only signs sessions on the empty preview database, so it is safe to commit.
+      // Production's secret is never in this file: `wrangler secret put BETTER_AUTH_SECRET`.
+      "BETTER_AUTH_SECRET": "preview-only-not-a-secret-preview-only-not-a-secret"
     },
     "d1_databases": [
       {

@@ -89,12 +89,17 @@ export const intakeRoutes = new Hono<AppEnv>().post(
 );
 
 // Finds a Guardian by phone so a sibling's Intake can reuse them instead of typing them again.
-export const guardiansRoutes = new Hono<AppEnv>().get('/', async (c) => {
-    const digits = normalizePhone(c.req.query('phone') ?? '');
+export const guardiansRoutes = new Hono<AppEnv>().get(
+    '/',
+    // validator('query') makes `phone` part of the route's type, so the RPC client knows to send it.
+    validator('query', (query) => ({ phone: typeof query.phone === 'string' ? query.phone : '' })),
+    async (c) => {
+    const digits = normalizePhone(c.req.valid('query').phone);
     if (digits.length < 7) return c.json({ guardians: [] });
     const db = getDb(c.env);
     const rows = await db.select().from(guardians).where(like(guardians.phoneSearch, `%${digits}`)).limit(5);
     return c.json({
         guardians: rows.map((g) => ({ id: g.id, name: g.name, relationship: g.relationship, phone: g.phone })),
     });
-});
+},
+);

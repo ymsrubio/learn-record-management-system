@@ -19,6 +19,21 @@ export const patients = sqliteTable('patients', {
     phoneSearch: text('phone_search'), // last 10 digits, so 0917..., 917... and +63917... agree
     // Nullable: quick add saves a patient before the Intake form fills this in.
     birthdate: text('birthdate'), // 'YYYY-MM-DD'
+    // Filled in by the Intake.
+    previousSurname: text('previous_surname'),
+    previousSurnameSearch: text('previous_surname_search'), // normalised like name_search
+    sex: text('sex', { enum: ['female', 'male'] }),
+    occupation: text('occupation'),
+    landline: text('landline'),
+    email: text('email'),
+    address: text('address'),
+    emergencyContactName: text('emergency_contact_name'),
+    emergencyContactPhone: text('emergency_contact_phone'),
+    patientHistory: text('patient_history'),
+    // Set only for a Patient under 18. Siblings point at the same guardians row.
+    guardianId: text('guardian_id'),
+    // Clinic-local date ('YYYY-MM-DD') the Patient or Guardian gave consent at Intake.
+    consentGivenOn: text('consent_given_on'),
     // null = Pending Intake (see CONTEXT.md).
     intakeCompletedAt: integer('intake_completed_at', { mode: 'timestamp_ms' }),
     // null = active, set = Archived. Nothing is ever deleted.
@@ -64,3 +79,53 @@ export const patientViews = sqliteTable(
     },
     (t) => [primaryKey({ columns: [t.userId, t.patientId] })],
 );
+
+// The adult responsible for a Patient under 18. Several Patients can point at one row.
+export const guardians = sqliteTable('guardians', {
+    id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+    name: text('name').notNull(),
+    relationship: text('relationship').notNull(),
+    phone: text('phone').notNull(),
+    phoneSearch: text('phone_search').notNull(), // last 10 digits, like patients.phone_search
+    createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+    updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull(),
+    createdBy: text('created_by'),
+    updatedBy: text('updated_by'),
+});
+
+// One per Patient (patient_id is the key). Ticked lists are JSON arrays of keys from worker/intake/lists.ts.
+export const medicalHistories = sqliteTable('medical_histories', {
+    patientId: text('patient_id').primaryKey(),
+    seriousIllness: integer('serious_illness', { mode: 'boolean' }).notNull(),
+    seriousIllnessDetails: text('serious_illness_details'),
+    bloodTransfusion: integer('blood_transfusion', { mode: 'boolean' }).notNull(),
+    transfusionDates: text('transfusion_dates'),
+    // Only for female Patients; null otherwise.
+    pregnant: integer('pregnant', { mode: 'boolean' }),
+    nursing: integer('nursing', { mode: 'boolean' }),
+    birthControl: integer('birth_control', { mode: 'boolean' }),
+    conditions: text('conditions', { mode: 'json' }).$type<string[]>().notNull(),
+    medications: text('medications'),
+    allergies: text('allergies', { mode: 'json' }).$type<string[]>().notNull(),
+    allergiesOther: text('allergies_other'),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+    updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull(),
+    createdBy: text('created_by'),
+    updatedBy: text('updated_by'),
+});
+
+export const dentalHistories = sqliteTable('dental_histories', {
+    patientId: text('patient_id').primaryKey(),
+    visitReason: text('visit_reason').notNull(),
+    formerDentistName: text('former_dentist_name'),
+    formerDentistContact: text('former_dentist_contact'),
+    formerDentistAddress: text('former_dentist_address'),
+    lastDentalCare: text('last_dental_care'), // 'YYYY-MM-DD'
+    symptoms: text('symptoms', { mode: 'json' }).$type<string[]>().notNull(),
+    brushFrequency: text('brush_frequency').notNull(),
+    flossFrequency: text('floss_frequency').notNull(),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+    updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull(),
+    createdBy: text('created_by'),
+    updatedBy: text('updated_by'),
+});

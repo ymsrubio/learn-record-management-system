@@ -113,6 +113,19 @@ describe('Patient Record', () => {
                 flags: { pendingIntake: true, archived: false },
             },
             alerts: [],
+            details: {
+                previousSurname: null,
+                sex: null,
+                occupation: null,
+                landline: null,
+                email: null,
+                address: null,
+                emergencyContactName: null,
+                emergencyContactPhone: null,
+                patientHistory: null,
+            },
+            consentGivenOn: null,
+            guardian: null,
             timeline: [],
         });
     });

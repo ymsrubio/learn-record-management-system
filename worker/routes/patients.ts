@@ -5,6 +5,7 @@ import { ageOn, type AppEnv } from '../clock';
 import { auditOnCreate, auditOnUpdate } from '../db/audit';
 import { getDb } from '../db/client';
 import { appointments, patients, patientViews } from '../db/schema';
+import { intakeSummary } from '../intake/record';
 import { normalizeName, normalizePhone } from '../patients/normalize';
 import { appointmentStart, parseDetails, parseQuickAdd } from '../patients/validate';
 
@@ -80,8 +81,7 @@ export const patientsRoutes = new Hono<AppEnv>()
 
         return c.json({
             patient: present(patient, c.var.clock.today()),
-            // Medical History alerts arrive with Intake; the strip is part of the response shape already.
-            alerts: [] as string[],
+            ...(await intakeSummary(db, patient)),
             timeline: rows.map((a) => ({
                 id: a.id,
                 startAt: a.startAt.toISOString(),

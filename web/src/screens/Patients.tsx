@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Search } from 'lucide-react';
+import { Link } from 'react-router';
+import { Plus, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { patientsQuery } from '@/lib/queries';
 
@@ -27,6 +28,13 @@ export function Patients() {
                 />
             </div>
 
+            <Button asChild className="mt-4 h-12 w-full text-base font-bold md:w-auto">
+                <Link to={text.trim() ? `/patients/new?name=${encodeURIComponent(text.trim())}` : '/patients/new'}>
+                    <Plus aria-hidden />
+                    Add patient
+                </Link>
+            </Button>
+
             <div className="mt-4" aria-live="polite">
                 {isPending && <p className="text-muted-foreground">Loading patients…</p>}
                 {error && (
@@ -45,9 +53,11 @@ export function Patients() {
                 {matches && matches.length > 0 && (
                     <ul className="flex flex-col gap-3">
                         {matches.map((p) => (
-                            <li key={p.id} className="rounded-lg bg-card p-4 shadow-sm">
-                                <p className="font-bold">{p.fullName}</p>
-                                {p.mobilePhone && <p className="text-sm text-muted-foreground">{p.mobilePhone}</p>}
+                            <li key={p.id}>
+                                <Link to={`/patients/${p.id}`} className="block rounded-lg bg-card p-4 shadow-sm">
+                                    <p className="font-bold">{p.fullName}</p>
+                                    {p.mobilePhone && <p className="text-sm text-muted-foreground">{p.mobilePhone}</p>}
+                                </Link>
                             </li>
                         ))}
                     </ul>

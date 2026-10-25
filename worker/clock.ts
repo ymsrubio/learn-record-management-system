@@ -24,6 +24,19 @@ export function clinicDate(instant: Date): string {
     return clinicDateFormat.format(instant);
 }
 
+// The clinic's wall-clock date and time as a UTC instant. Asia/Manila is UTC+8 all year (no daylight
+// saving), so a fixed offset is exact.
+export function clinicInstant(date: string, time: string): Date {
+    return new Date(`${date}T${time}:00+08:00`);
+}
+
+// Whole years between a 'YYYY-MM-DD' birthdate and today's clinic date.
+export function ageOn(birthdate: string, today: string): number {
+    const [by, bm, bd] = birthdate.split('-').map(Number);
+    const [ty, tm, td] = today.split('-').map(Number);
+    return ty - by - (tm < bm || (tm === bm && td < bd) ? 1 : 0);
+}
+
 export function createClock(now: () => Date = () => new Date()): Clock {
     return { now, today: () => clinicDate(now()) };
 }

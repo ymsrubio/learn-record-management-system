@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useParams } from 'react-router';
-import { CalendarPlus, ChevronLeft, ClipboardCheck, Hourglass, Loader2, Pencil, Phone, TriangleAlert } from 'lucide-react';
+import { CalendarPlus, ChevronLeft, ClipboardCheck, Footprints, Hourglass, Loader2, Pencil, Phone, TriangleAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Field } from '@/components/Field';
 import { api } from '@/lib/api';
@@ -198,6 +198,11 @@ export function PatientRecord() {
                 <Button asChild variant="secondary" size="icon" className="size-12" aria-label="Create appointment">
                     <Link to={`/appointments/new?patientId=${patient.id}`}>
                         <CalendarPlus aria-hidden />
+                    </Link>
+                </Button>
+                <Button asChild variant="secondary" size="icon" className="size-12" aria-label="Walk-in">
+                    <Link to={`/appointments/new?walkin=1&patientId=${patient.id}`}>
+                        <Footprints aria-hidden />
                     </Link>
                 </Button>
                 {patient.flags.pendingIntake && (

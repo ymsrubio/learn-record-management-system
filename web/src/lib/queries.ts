@@ -32,3 +32,14 @@ export async function saveResult<T>(res: { ok: boolean; status: number; json(): 
     if (res.status === 400) return { ok: false, errors: ((await res.json()) as { errors: FieldErrors }).errors };
     throw new Error(`Save failed with ${res.status}`);
 }
+
+export const appointmentQuery = (id: string) =>
+    queryOptions({
+        queryKey: ['appointments', id],
+        queryFn: async () => {
+            const res = await api.api.appointments[':id'].$get({ param: { id } });
+            if (res.status === 404) return null;
+            if (!res.ok) throw new Error(`GET /api/appointments/${id} failed with ${res.status}`);
+            return res.json();
+        },
+    });

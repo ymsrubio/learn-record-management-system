@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { type AppEnv, clockMiddleware } from './clock';
 import { createAuth } from './auth/auth';
 import { requireSession } from './auth/session';
+import { appointmentsRoutes } from './routes/appointments';
 import { patientsRoutes } from './routes/patients';
 
 // One Hono app holds every API route. Cloudflare calls `app.fetch(request)` for each
@@ -25,7 +26,8 @@ const routes = app
         const { id, name, email, role } = c.var.user;
         return c.json({ id, name, email, role });
     })
-    .route('/api/patients', patientsRoutes);
+    .route('/api/patients', patientsRoutes)
+    .route('/api/appointments', appointmentsRoutes);
 
 export type AppType = typeof routes;
 

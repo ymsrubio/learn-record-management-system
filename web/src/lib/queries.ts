@@ -87,3 +87,15 @@ export const treatmentNoteQuery = (appointmentId: string) =>
             return res.json();
         },
     });
+
+// Everything the Dashboard shows, from one request. Changing an Appointment invalidates the
+// ['appointments'] prefix and a new Patient the ['patients'] prefix; the Dashboard key sits under
+// ['appointments'] so those refresh it.
+export const dashboardQuery = queryOptions({
+    queryKey: ['appointments', 'dashboard'],
+    queryFn: async () => {
+        const res = await api.api.dashboard.$get();
+        if (!res.ok) throw new Error(`GET /api/dashboard failed with ${res.status}`);
+        return res.json();
+    },
+});

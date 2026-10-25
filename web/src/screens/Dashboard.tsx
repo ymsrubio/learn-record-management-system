@@ -28,14 +28,14 @@ export function Dashboard() {
     return (
         <div className="flex flex-col gap-6">
             <h1 className="text-[28px] font-bold leading-[34px] tracking-tight">Dashboard</h1>
-            <div className="flex gap-2">
-                <Button asChild variant="secondary" className="h-12 min-w-0 flex-1 px-3 md:flex-none md:px-5">
+            <div className="flex flex-wrap gap-2">
+                <Button asChild variant="secondary" className="h-12 flex-1 md:flex-none">
                     <Link to="/patients/new">
                         <UserPlus aria-hidden />
                         Add patient
                     </Link>
                 </Button>
-                <Button asChild className="h-12 min-w-0 flex-1 px-3 md:flex-none md:px-5">
+                <Button asChild className="h-12 flex-1 md:flex-none">
                     <Link to="/appointments/new">
                         <Plus aria-hidden />
                         Create appointment

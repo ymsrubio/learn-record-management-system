@@ -1,4 +1,4 @@
-import { queryOptions } from '@tanstack/react-query';
+import { keepPreviousData, queryOptions } from '@tanstack/react-query';
 import { api } from './api';
 
 // TanStack Query owns fetching state for us: loading, error, caching, refetch on focus.
@@ -11,6 +11,39 @@ export const patientsQuery = queryOptions({
         return res.json();
     },
 });
+
+// Search as you type: each distinct text is its own cache entry, and keepPreviousData keeps the
+// last results on screen while the next keystroke's request is in flight (no flash of "loading").
+export const patientSearchQuery = (q: string, includeArchived: boolean) =>
+    queryOptions({
+        queryKey: ['patients', 'search', q, includeArchived],
+        queryFn: async () => {
+            const res = await api.api.patients.search.$get({ query: { q, includeArchived: String(includeArchived) } });
+            if (!res.ok) throw new Error(`GET /api/patients/search failed with ${res.status}`);
+            return (await res.json()).results;
+        },
+        placeholderData: keepPreviousData,
+    });
+
+export const recentPatientsQuery = queryOptions({
+    queryKey: ['patients', 'recent'],
+    queryFn: async () => {
+        const res = await api.api.patients.recent.$get();
+        if (!res.ok) throw new Error(`GET /api/patients/recent failed with ${res.status}`);
+        return (await res.json()).results;
+    },
+});
+
+export const duplicatesQuery = (name: string, phone: string) =>
+    queryOptions({
+        queryKey: ['patients', 'duplicates', name, phone],
+        queryFn: async () => {
+            const res = await api.api.patients.duplicates.$get({ query: { name, phone } });
+            if (!res.ok) throw new Error(`GET /api/patients/duplicates failed with ${res.status}`);
+            return (await res.json()).results;
+        },
+        placeholderData: keepPreviousData,
+    });
 
 export const patientRecordQuery = (id: string) =>
     queryOptions({

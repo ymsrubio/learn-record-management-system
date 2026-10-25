@@ -21,3 +21,7 @@ export function clinicParts(instant: string) {
 
 // "0917 123 4567" -> "tel:09171234567"
 export const telHref = (phone: string) => `tel:${phone.replace(/[^\d+]/g, '')}`;
+
+// An instant -> the clinic's calendar date, 'YYYY-MM-DD' (what formatDate takes). 'en-CA' prints that shape.
+export const clinicDateOf = (instant: string) =>
+    new Intl.DateTimeFormat('en-CA', { timeZone: TIMEZONE, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(instant));

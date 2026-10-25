@@ -1,4 +1,4 @@
-import { and, asc, eq, gt, lt, ne, sql } from 'drizzle-orm';
+import { and, asc, eq, gt, inArray, lt, ne, sql } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { validator } from 'hono/validator';
 import { clinicInstant, type AppEnv } from '../clock';
@@ -6,7 +6,7 @@ import { canChangeStatus, endOf, isWithinWorkingHours, walkInStart } from '../ap
 import { parseCreate, parseEdit, parseStatus, parseWalkIn, startOf } from '../appointments/validate';
 import { auditOnCreate, auditOnUpdate } from '../db/audit';
 import { getDb } from '../db/client';
-import { appointments, patients } from '../db/schema';
+import { appointments, patients, treatmentNotes } from '../db/schema';
 import { isCalendarDate } from '../patients/validate';
 
 type Db = ReturnType<typeof getDb>;
@@ -16,7 +16,7 @@ const MINUTE_MS = 60_000;
 
 // What the API returns for an Appointment. `date` and `time` are the clinic wall-clock parts of
 // startAt, so an edit form can be filled without doing time zone maths in the browser.
-function present(a: AppointmentRow, patientName: string) {
+function present(a: AppointmentRow, patientName: string, hasTreatmentNote: boolean) {
     const wall = new Date(a.startAt.getTime() + 8 * 60 * MINUTE_MS).toISOString();
     return {
         id: a.id,
@@ -29,8 +29,8 @@ function present(a: AppointmentRow, patientName: string) {
         reason: a.reason,
         status: a.status,
         walkIn: a.walkIn,
-        // Treatment Notes arrive in a later slice. Until then no Appointment has one, so no status is held.
-        statusLocked: false,
+        // A Completed Appointment with a Treatment Note stays Completed.
+        statusLocked: a.status === 'completed' && hasTreatmentNote,
     };
 }
 
@@ -62,6 +62,17 @@ async function warningsFor(db: Db, a: Pick<AppointmentRow, 'id' | 'startAt' | 'd
     };
 }
 
+async function hasNote(db: Db, appointmentId: string) {
+    return (await notedIds(db, [appointmentId])).has(appointmentId);
+}
+
+// Which of these Appointments have a Treatment Note.
+async function notedIds(db: Db, ids: string[]) {
+    if (ids.length === 0) return new Set<string>();
+    const rows = await db.select({ id: treatmentNotes.appointmentId }).from(treatmentNotes).where(inArray(treatmentNotes.appointmentId, ids));
+    return new Set(rows.map((r) => r.id));
+}
+
 async function findPatient(db: Db, id: string) {
     const [patient] = await db.select().from(patients).where(eq(patients.id, id));
     return patient;
@@ -89,13 +100,15 @@ export const appointmentsRoutes = new Hono<AppEnv>()
             return c.json({ error: 'from and to must be dates (YYYY-MM-DD), with to on or after from' }, 400);
         }
         const dayAfterTo = new Date(clinicInstant(to, '00:00').getTime() + 24 * 60 * MINUTE_MS);
-        const rows = await getDb(c.env)
+        const db = getDb(c.env);
+        const rows = await db
             .select({ a: appointments, patientName: patients.fullName })
             .from(appointments)
             .innerJoin(patients, eq(patients.id, appointments.patientId))
             .where(and(gt(appointments.startAt, new Date(clinicInstant(from, '00:00').getTime() - 1)), lt(appointments.startAt, dayAfterTo)))
             .orderBy(asc(appointments.startAt));
-        return c.json(rows.map((r) => present(r.a, r.patientName)));
+        const noted = await notedIds(db, rows.map((r) => r.a.id));
+        return c.json(rows.map((r) => present(r.a, r.patientName, noted.has(r.a.id))));
     })
     .post(
         '/',
@@ -114,7 +127,7 @@ export const appointmentsRoutes = new Hono<AppEnv>()
                 .insert(appointments)
                 .values({ patientId: patient.id, startAt: startOf(input), durationMinutes: input.durationMinutes, reason: input.reason, ...auditOnCreate(c) })
                 .returning();
-            return c.json({ appointment: present(row, patient.fullName), warnings: await warningsFor(db, row) }, 201);
+            return c.json({ appointment: present(row, patient.fullName, false), warnings: await warningsFor(db, row) }, 201);
         },
     )
     // A Walk-in is an Appointment for right now (rounded down to 5 minutes) at the default duration.
@@ -135,14 +148,14 @@ export const appointmentsRoutes = new Hono<AppEnv>()
                 .insert(appointments)
                 .values({ patientId: patient.id, startAt: walkInStart(c.var.clock.now()), walkIn: true, ...auditOnCreate(c) })
                 .returning();
-            return c.json({ appointment: present(row, patient.fullName), warnings: await warningsFor(db, row) }, 201);
+            return c.json({ appointment: present(row, patient.fullName, false), warnings: await warningsFor(db, row) }, 201);
         },
     )
     .get('/:id', async (c) => {
         const db = getDb(c.env);
         const found = await findAppointment(db, c.req.param('id'));
         if (!found) return c.json(NOT_FOUND, 404);
-        return c.json({ appointment: present(found.a, found.patientName), warnings: await warningsFor(db, found.a) });
+        return c.json({ appointment: present(found.a, found.patientName, await hasNote(db, found.a.id)), warnings: await warningsFor(db, found.a) });
     })
     // Edit date, time, duration and reason. The Patient cannot change.
     .patch(
@@ -163,7 +176,7 @@ export const appointmentsRoutes = new Hono<AppEnv>()
                 .set({ startAt: startOf(input), durationMinutes: input.durationMinutes, reason: input.reason, ...auditOnUpdate(c) })
                 .where(eq(appointments.id, found.a.id))
                 .returning();
-            return c.json({ appointment: present(row, found.patientName), warnings: await warningsFor(db, row) });
+            return c.json({ appointment: present(row, found.patientName, await hasNote(db, row.id)), warnings: await warningsFor(db, row) });
         },
     )
     .post(
@@ -179,9 +192,7 @@ export const appointmentsRoutes = new Hono<AppEnv>()
             if (!found) return c.json(NOT_FOUND, 404);
             if (found.archivedAt) return c.json(ARCHIVED, 409);
 
-            // Treatment Notes (a later slice) will supply this. Until then no Appointment has one.
-            const hasTreatmentNote = false;
-            if (!canChangeStatus(found.a.status, status, hasTreatmentNote)) {
+            if (!canChangeStatus(found.a.status, status, await hasNote(db, found.a.id))) {
                 return c.json({ error: 'A Completed Appointment with a Treatment Note stays Completed.', code: 'completed_has_note' }, 409);
             }
 
@@ -190,6 +201,6 @@ export const appointmentsRoutes = new Hono<AppEnv>()
                 .set({ status, ...auditOnUpdate(c) })
                 .where(eq(appointments.id, found.a.id))
                 .returning();
-            return c.json({ appointment: present(row, found.patientName), warnings: await warningsFor(db, row) });
+            return c.json({ appointment: present(row, found.patientName, await hasNote(db, row.id)), warnings: await warningsFor(db, row) });
         },
     );

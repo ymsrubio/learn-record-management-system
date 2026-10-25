@@ -4,8 +4,10 @@ import { Link, useParams } from 'react-router';
 import { CalendarPlus, ChevronLeft, ClipboardCheck, Footprints, Hourglass, Loader2, Pencil, Phone, TriangleAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Field } from '@/components/Field';
+import { LockBadge } from '@/components/LockBadge';
 import { api } from '@/lib/api';
-import { clinicParts, formatDate, telHref } from '@/lib/format';
+import { clinicDateOf, clinicParts, formatDate, telHref } from '@/lib/format';
+import type { PresentedNote } from '../../../worker/notes/load';
 import { patientRecordQuery, saveResult, type FieldErrors } from '@/lib/queries';
 
 const statusLabel = { scheduled: 'Scheduled', completed: 'Completed', cancelled: 'Cancelled', no_show: 'No-show' } as const;
@@ -183,27 +185,31 @@ export function PatientRecord() {
                         {timeline.map((a) => {
                             const when = clinicParts(a.startAt);
                             return (
-                                <Link
-                                    key={a.id}
-                                    to={`/appointments/${a.id}`}
-                                    className="flex items-start gap-3.5 rounded-lg bg-card px-4 py-3 shadow-sm"
-                                >
-                                    <span className="flex w-9 shrink-0 flex-col items-center">
-                                        <span className="text-[22px] font-bold leading-[26px]">{when.day}</span>
-                                        <span className="text-[11px] font-bold leading-[14px] tracking-[0.08em] text-muted-foreground">
-                                            {when.month}
-                                        </span>
-                                    </span>
-                                    <span className="flex min-w-0 flex-1 flex-col gap-1.5">
-                                        <span className="flex items-center justify-between gap-2">
-                                            <span className="truncate font-bold">{a.reason ?? 'Appointment'}</span>
-                                            <span className="shrink-0 rounded-full bg-accent px-2 py-0.5 text-xs font-bold text-signal">
-                                                {statusLabel[a.status]}
+                                <div key={a.id} className="rounded-lg bg-card shadow-sm">
+                                    <Link to={`/appointments/${a.id}`} className="flex items-start gap-3.5 px-4 py-3">
+                                        <span className="flex w-9 shrink-0 flex-col items-center">
+                                            <span className="text-[22px] font-bold leading-[26px]">{when.day}</span>
+                                            <span className="text-[11px] font-bold leading-[14px] tracking-[0.08em] text-muted-foreground">
+                                                {when.month}
                                             </span>
                                         </span>
-                                        <span className="text-sm text-muted-foreground">{when.time}</span>
-                                    </span>
-                                </Link>
+                                        <span className="flex min-w-0 flex-1 flex-col gap-1.5">
+                                            <span className="flex items-center justify-between gap-2">
+                                                <span className="truncate font-bold">{a.reason ?? 'Appointment'}</span>
+                                                <span className="shrink-0 rounded-full bg-accent px-2 py-0.5 text-xs font-bold text-signal">
+                                                    {statusLabel[a.status]}
+                                                </span>
+                                            </span>
+                                            <span className="text-sm text-muted-foreground">{when.time}</span>
+                                        </span>
+                                    </Link>
+                                    {a.note && <TimelineNote appointmentId={a.id} note={a.note} />}
+                                    {!a.note && a.status === 'completed' && (
+                                        <Link to={`/appointments/${a.id}/note`} className="flex h-11 items-center border-t px-4 font-bold text-signal">
+                                            Write Treatment Note
+                                        </Link>
+                                    )}
+                                </div>
                             );
                         })}
                     </section>
@@ -230,6 +236,31 @@ export function PatientRecord() {
                     </Button>
                 )}
             </div>
+        </div>
+    );
+}
+
+function TimelineNote({ appointmentId, note }: { appointmentId: string; note: PresentedNote }) {
+    return (
+        <div className="flex flex-col gap-2 border-t px-4 py-3">
+            <Link to={`/appointments/${appointmentId}/note`} className="flex flex-col gap-1">
+                <span className="flex items-center gap-2">
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Treatment Note</span>
+                    {note.locked && <LockBadge />}
+                </span>
+                <span className="line-clamp-3 whitespace-pre-wrap"><b>Findings:</b> {note.findings}</span>
+                <span className="line-clamp-3 whitespace-pre-wrap"><b>Treatment done:</b> {note.treatmentDone}</span>
+                {note.nextSteps && <span className="line-clamp-3 whitespace-pre-wrap"><b>Next steps:</b> {note.nextSteps}</span>}
+            </Link>
+            {note.amendments.map((am) => (
+                <div key={am.id} className="rounded-md bg-muted p-3 ring-1 ring-border">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Amendment</p>
+                    <p className="whitespace-pre-wrap">{am.text}</p>
+                    <p className="text-sm text-muted-foreground">
+                        {am.writtenBy ?? 'a former user'} · {formatDate(clinicDateOf(am.writtenAt))}, {clinicParts(am.writtenAt).time}
+                    </p>
+                </div>
+            ))}
         </div>
     );
 }

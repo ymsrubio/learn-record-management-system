@@ -76,3 +76,14 @@ export const appointmentQuery = (id: string) =>
             return res.json();
         },
     });
+
+export const treatmentNoteQuery = (appointmentId: string) =>
+    queryOptions({
+        queryKey: ['appointments', appointmentId, 'note'],
+        queryFn: async () => {
+            const res = await api.api.appointments[':id'].note.$get({ param: { id: appointmentId } });
+            if (res.status === 404) return null;
+            if (!res.ok) throw new Error(`GET /api/appointments/${appointmentId}/note failed with ${res.status}`);
+            return res.json();
+        },
+    });

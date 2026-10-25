@@ -9,6 +9,7 @@ import { AddPatient } from '@/screens/AddPatient';
 import { PatientRecord } from '@/screens/PatientRecord';
 import { Intake } from '@/screens/Intake';
 import { Patients } from '@/screens/Patients';
+import { TreatmentNote } from '@/screens/TreatmentNote';
 import { Schedule } from '@/screens/Schedule';
 import { NotFound } from '@/screens/NotFound';
 
@@ -30,6 +31,7 @@ export function App() {
                 <Route path="patients/:id" element={<PatientRecord />} />
                 <Route path="appointments/new" element={<AppointmentForm />} />
                 <Route path="appointments/:id" element={<AppointmentForm />} />
+                <Route path="appointments/:id/note" element={<TreatmentNote />} />
                 <Route path="patients/:id/intake" element={<Intake />} />
                 <Route path="schedule" element={<Schedule />} />
                 <Route path="*" element={<NotFound />} />

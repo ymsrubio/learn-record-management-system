@@ -53,7 +53,8 @@ export const dashboardRoutes = new Hono<AppEnv>().get('/', async (c) => {
         .select({ a: appointments, patientName: patients.fullName })
         .from(appointments)
         .innerJoin(patients, eq(patients.id, appointments.patientId))
-        .where(and(eq(appointments.status, 'scheduled'), lt(appointments.startAt, todayStart)))
+        // An Archived Patient's Appointment cannot be updated, so it is not asked about.
+        .where(and(eq(appointments.status, 'scheduled'), lt(appointments.startAt, todayStart), isNull(patients.archivedAt)))
         .orderBy(asc(appointments.startAt));
 
     const pendingIntake = await db

@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useParams } from 'react-router';
-import { CalendarPlus, ChevronLeft, ClipboardCheck, Footprints, Hourglass, Loader2, Pencil, Phone, TriangleAlert } from 'lucide-react';
+import { CalendarPlus, ChevronLeft, ClipboardCheck, Footprints, Hourglass, Archive, Loader2, MoreVertical, Pencil, Phone, RotateCcw, TriangleAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Field } from '@/components/Field';
 import { LockBadge } from '@/components/LockBadge';
@@ -43,6 +43,7 @@ export function PatientRecord() {
 
     const { patient, alerts, timeline, details, guardian, consentGivenOn } = data;
     const first = patient.fullName.split(/\s+/)[0];
+    const archived = patient.flags.archived;
 
     return (
         <div className="flex flex-col gap-4 pb-20 md:pb-0">
@@ -60,11 +61,12 @@ export function PatientRecord() {
                             Pending Intake
                         </span>
                     )}
-                    {patient.flags.archived && (
+                    {archived && (
                         <span className="inline-flex h-6 items-center rounded-full bg-muted px-2 text-xs font-semibold text-muted-foreground">
                             Archived
                         </span>
                     )}
+                    {!archived && <OverflowMenu patientId={patient.id} />}
                 </div>
                 <p className="text-sm text-muted-foreground">
                     {patient.birthdate
@@ -82,6 +84,8 @@ export function PatientRecord() {
                 )}
             </section>
 
+            {archived && <ArchivedBanner patientId={patient.id} />}
+
             <section
                 aria-label="Medical History alerts"
                 className="flex items-start gap-2 rounded-lg bg-warning-soft px-4 py-3 font-bold text-warning"
@@ -94,7 +98,7 @@ export function PatientRecord() {
 
             <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] md:items-start">
                 <div className="flex flex-col gap-4">
-                    {patient.flags.pendingIntake && (
+                    {patient.flags.pendingIntake && !archived && (
                         <section className="flex flex-col gap-3 rounded-lg bg-card p-4 shadow-sm">
                             <h2 className="flex items-center gap-3 font-bold">
                                 <span className="flex size-10 items-center justify-center rounded-full bg-accent text-signal">
@@ -114,7 +118,7 @@ export function PatientRecord() {
                     <section className="overflow-hidden rounded-lg bg-card shadow-sm" aria-label="Details">
                         <div className="flex items-center justify-between pr-2">
                             <h2 className="px-4 pb-1 pt-3 font-bold">Details</h2>
-                            {!editing && (
+                            {!editing && !archived && (
                                 <Button variant="ghost" size="default" onClick={() => setEditing(true)}>
                                     <Pencil aria-hidden />
                                     Edit details
@@ -171,7 +175,10 @@ export function PatientRecord() {
                                 {timeline.length === 1 ? '1 Appointment' : `${timeline.length} Appointments`}
                             </span>
                         </div>
-                        {timeline.length === 0 && (
+                        {timeline.length === 0 && archived && (
+                            <div className="rounded-lg bg-card p-4 text-muted-foreground shadow-sm">No appointments.</div>
+                        )}
+                        {timeline.length === 0 && !archived && (
                             <div className="rounded-lg bg-card p-4 text-muted-foreground shadow-sm">
                                 <p>No appointments yet.</p>
                                 <Button asChild variant="secondary" className="mt-3">
@@ -204,7 +211,7 @@ export function PatientRecord() {
                                         </span>
                                     </Link>
                                     {a.note && <TimelineNote appointmentId={a.id} note={a.note} />}
-                                    {!a.note && a.status === 'completed' && (
+                                    {!a.note && a.status === 'completed' && !archived && (
                                         <Link to={`/appointments/${a.id}/note`} className="flex h-11 items-center border-t px-4 font-bold text-signal">
                                             Write Treatment Note
                                         </Link>
@@ -216,6 +223,7 @@ export function PatientRecord() {
                 </div>
             </div>
 
+            {!archived && (
             <div className="fixed inset-x-0 bottom-[76px] z-10 flex gap-2 bg-background px-4 pb-3 pt-2 md:static md:bg-transparent md:p-0">
                 <Button asChild variant="secondary" size="icon" className="size-12" aria-label="Create appointment">
                     <Link to={`/appointments/new?patientId=${patient.id}`}>
@@ -236,6 +244,7 @@ export function PatientRecord() {
                     </Button>
                 )}
             </div>
+            )}
         </div>
     );
 }
@@ -325,5 +334,75 @@ function EditDetails({ id, initial, onDone }: { id: string; initial: Details; on
                 </Button>
             </div>
         </form>
+    );
+}
+
+// Archive and Restore are plain POSTs that flip archived_at. Both refetch the record and the
+// search lists, so the badge, the banner and the results stay in step with the server.
+function useArchiveToggle(patientId: string, action: 'archive' | 'restore') {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async () => {
+            const res = await api.api.patients[':id'][action].$post({ param: { id: patientId } });
+            if (!res.ok) throw new Error(`${action} failed with ${res.status}`);
+        },
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['patients'] }),
+    });
+}
+
+function OverflowMenu({ patientId }: { patientId: string }) {
+    const [open, setOpen] = useState(false);
+    const [confirming, setConfirming] = useState(false);
+    const archive = useArchiveToggle(patientId, 'archive');
+
+    function close() {
+        setOpen(false);
+        setConfirming(false);
+    }
+
+    return (
+        <div className="relative ml-auto">
+            <Button variant="ghost" size="icon" className="size-11" aria-label="More actions" aria-haspopup="menu" aria-expanded={open} onClick={() => (open ? close() : setOpen(true))}>
+                <MoreVertical aria-hidden />
+            </Button>
+            {open && (
+                <div role="menu" className="absolute right-0 top-12 z-20 w-64 rounded-lg bg-card p-2 shadow-lg ring-1 ring-border">
+                    {!confirming ? (
+                        <button role="menuitem" className="flex h-11 w-full items-center gap-2 rounded-md px-3 text-left font-bold hover:bg-muted" onClick={() => setConfirming(true)}>
+                            <Archive className="size-[18px]" aria-hidden />
+                            Archive patient
+                        </button>
+                    ) : (
+                        <div className="flex flex-col gap-2 p-1">
+                            <p className="text-sm">They will leave normal search. Their record stays and you can Restore it.</p>
+                            {archive.isError && <p role="alert" className="text-sm text-destructive">Couldn't archive. Try again.</p>}
+                            <div className="flex gap-2">
+                                <Button variant="secondary" className="h-11 flex-1" onClick={close}>Cancel</Button>
+                                <Button className="h-11 flex-1" disabled={archive.isPending} onClick={() => archive.mutate(undefined, { onSuccess: close })}>
+                                    {archive.isPending && <Loader2 className="animate-spin" aria-hidden />}
+                                    Archive
+                                </Button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+}
+
+function ArchivedBanner({ patientId }: { patientId: string }) {
+    const restore = useArchiveToggle(patientId, 'restore');
+    return (
+        <section aria-label="Archived" className="flex flex-col gap-3 rounded-lg bg-muted p-4 ring-1 ring-border sm:flex-row sm:items-center sm:justify-between">
+            <p>
+                <b>This Patient is Archived.</b> The record is read-only. Restore to make changes.
+            </p>
+            {restore.isError && <p role="alert" className="text-sm text-destructive">Couldn't restore. Try again.</p>}
+            <Button className="h-12 sm:shrink-0" disabled={restore.isPending} onClick={() => restore.mutate()}>
+                {restore.isPending ? <Loader2 className="animate-spin" aria-hidden /> : <RotateCcw aria-hidden />}
+                Restore
+            </Button>
+        </section>
     );
 }

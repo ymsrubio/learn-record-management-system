@@ -16,7 +16,7 @@ const MINUTE_MS = 60_000;
 
 // What the API returns for an Appointment. `date` and `time` are the clinic wall-clock parts of
 // startAt, so an edit form can be filled without doing time zone maths in the browser.
-function present(a: AppointmentRow, patientName: string, hasTreatmentNote: boolean) {
+function present(a: AppointmentRow, patientName: string, hasTreatmentNote: boolean, patientArchived = false) {
     const wall = new Date(a.startAt.getTime() + 8 * 60 * MINUTE_MS).toISOString();
     return {
         id: a.id,
@@ -31,6 +31,8 @@ function present(a: AppointmentRow, patientName: string, hasTreatmentNote: boole
         walkIn: a.walkIn,
         // A Completed Appointment with a Treatment Note stays Completed.
         statusLocked: a.status === 'completed' && hasTreatmentNote,
+        // An Archived Patient's Appointments stay on the Schedule but cannot be changed.
+        patientArchived,
     };
 }
 
@@ -102,13 +104,13 @@ export const appointmentsRoutes = new Hono<AppEnv>()
         const dayAfterTo = new Date(clinicInstant(to, '00:00').getTime() + 24 * 60 * MINUTE_MS);
         const db = getDb(c.env);
         const rows = await db
-            .select({ a: appointments, patientName: patients.fullName })
+            .select({ a: appointments, patientName: patients.fullName, archivedAt: patients.archivedAt })
             .from(appointments)
             .innerJoin(patients, eq(patients.id, appointments.patientId))
             .where(and(gt(appointments.startAt, new Date(clinicInstant(from, '00:00').getTime() - 1)), lt(appointments.startAt, dayAfterTo)))
             .orderBy(asc(appointments.startAt));
         const noted = await notedIds(db, rows.map((r) => r.a.id));
-        return c.json(rows.map((r) => present(r.a, r.patientName, noted.has(r.a.id))));
+        return c.json(rows.map((r) => present(r.a, r.patientName, noted.has(r.a.id), r.archivedAt !== null)));
     })
     .post(
         '/',

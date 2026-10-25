@@ -39,7 +39,7 @@ export function PatientRecord() {
         );
     }
 
-    const { patient, alerts, timeline } = data;
+    const { patient, alerts, timeline, details, guardian, consentGivenOn } = data;
     const first = patient.fullName.split(/\s+/)[0];
 
     return (
@@ -130,8 +130,24 @@ export function PatientRecord() {
                                 <Detail label="Full name" value={patient.fullName} />
                                 <Detail label="Phone" value={patient.mobilePhone} />
                                 <Detail label="Birthdate" value={patient.birthdate && formatDate(patient.birthdate)} />
-                                <Detail label="Address" value={null} />
-                                <Detail label="Consent" value={null} last />
+                                <Detail label="Previous surname" value={details.previousSurname} />
+                                <Detail label="Sex" value={details.sex && (details.sex === 'female' ? 'Female' : 'Male')} />
+                                <Detail label="Occupation" value={details.occupation} />
+                                <Detail label="Landline" value={details.landline} />
+                                <Detail label="Email" value={details.email} />
+                                <Detail label="Address" value={details.address} />
+                                <Detail
+                                    label="Emergency contact"
+                                    value={details.emergencyContactName && `${details.emergencyContactName} · ${details.emergencyContactPhone}`}
+                                />
+                                <Detail label="Brief patient history" value={details.patientHistory} />
+                                {guardian && (
+                                    <Detail
+                                        label="Guardian"
+                                        value={`${guardian.name} (${guardian.relationship}) · ${guardian.phone}`}
+                                    />
+                                )}
+                                <Detail label="Consent given" value={consentGivenOn && formatDate(consentGivenOn)} last />
                             </dl>
                         )}
                     </section>

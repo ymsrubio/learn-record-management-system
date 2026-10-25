@@ -3,6 +3,7 @@ import { type AppEnv, clockMiddleware } from './clock';
 import { createAuth } from './auth/auth';
 import { requireSession } from './auth/session';
 import { appointmentsRoutes } from './routes/appointments';
+import { dashboardRoutes } from './routes/dashboard';
 import { guardiansRoutes, intakeRoutes } from './routes/intake';
 import { patientSearchRoutes } from './routes/patient-search';
 import { patientsRoutes } from './routes/patients';
@@ -36,7 +37,8 @@ const routes = app
     .route('/api/guardians', guardiansRoutes)
     .route('/api/appointments', appointmentsRoutes)
     .route('/api/appointments', treatmentNotesRoutes)
-    .route('/api/schedule', scheduleRoutes);
+    .route('/api/schedule', scheduleRoutes)
+    .route('/api/dashboard', dashboardRoutes);
 
 export type AppType = typeof routes;
 

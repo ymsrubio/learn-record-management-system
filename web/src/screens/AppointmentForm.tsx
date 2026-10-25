@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
-import { Ban, CalendarCheck, CheckCircle2, Footprints, Loader2, RotateCcw, UserX, X } from 'lucide-react';
+import { Ban, CalendarCheck, CheckCircle2, FileText, Footprints, Loader2, RotateCcw, UserX, X } from 'lucide-react';
 import { AppointmentWarnings, type Warnings } from '@/components/AppointmentWarnings';
 import { Field } from '@/components/Field';
 import { PatientPicker, type PickedPatient } from '@/components/PatientPicker';
@@ -346,6 +346,17 @@ function EditForm({ data, onSaved }: { data: Loaded; onSaved: (next: Loaded) => 
                         {label}
                     </Button>
                 ))}
+                {appointment.status === 'completed' && (
+                    <Button asChild className="h-12">
+                        <Link to={`/appointments/${appointment.id}/note`}>
+                            <FileText aria-hidden />
+                            {appointment.statusLocked ? 'Open Treatment Note' : 'Write Treatment Note'}
+                        </Link>
+                    </Button>
+                )}
+                {appointment.statusLocked && (
+                    <p className="text-sm text-muted-foreground">This Appointment has a Treatment Note, so it stays Completed.</p>
+                )}
                 {appointment.status !== 'scheduled' && (
                     <Button
                         type="button"

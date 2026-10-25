@@ -6,6 +6,7 @@ import { auditOnCreate, auditOnUpdate } from '../db/audit';
 import { getDb } from '../db/client';
 import { appointments, patients, patientViews } from '../db/schema';
 import { intakeSummary } from '../intake/record';
+import { loadNotes } from '../notes/load';
 import { normalizeName, normalizePhone } from '../patients/normalize';
 import { appointmentStart, parseDetails, parseQuickAdd } from '../patients/validate';
 
@@ -79,6 +80,8 @@ export const patientsRoutes = new Hono<AppEnv>()
             .where(eq(appointments.patientId, patient.id))
             .orderBy(desc(appointments.startAt));
 
+        const notes = await loadNotes(db, rows.map((a) => a.id), c.var.clock.today());
+
         return c.json({
             patient: present(patient, c.var.clock.today()),
             ...(await intakeSummary(db, patient)),
@@ -88,6 +91,7 @@ export const patientsRoutes = new Hono<AppEnv>()
                 durationMinutes: a.durationMinutes,
                 reason: a.reason,
                 status: a.status,
+                note: notes.get(a.id) ?? null,
             })),
         });
     })

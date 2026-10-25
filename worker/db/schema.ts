@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, primaryKey, index } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer, primaryKey, index, uniqueIndex } from 'drizzle-orm/sqlite-core';
 
 // Better Auth's tables live in their own generated file; re-exported so drizzle-kit and
 // getDb() see one schema.
@@ -129,3 +129,34 @@ export const dentalHistories = sqliteTable('dental_histories', {
     createdBy: text('created_by'),
     updatedBy: text('updated_by'),
 });
+
+// At most one per Appointment (the unique index). Whether it is Locked is never stored: it is worked
+// out from written_at and today's clinic date (worker/notes/rules.ts).
+export const treatmentNotes = sqliteTable(
+    'treatment_notes',
+    {
+        id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+        appointmentId: text('appointment_id').notNull(),
+        findings: text('findings').notNull(),
+        treatmentDone: text('treatment_done').notNull(),
+        nextSteps: text('next_steps'),
+        writtenBy: text('written_by').notNull(), // user.id
+        writtenAt: integer('written_at', { mode: 'timestamp_ms' }).notNull(),
+        updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull(),
+        updatedBy: text('updated_by'),
+    },
+    (t) => [uniqueIndex('treatment_notes_appointment_uidx').on(t.appointmentId)],
+);
+
+// Added to a Locked note, never changed or removed (no route updates this table).
+export const amendments = sqliteTable(
+    'amendments',
+    {
+        id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+        treatmentNoteId: text('treatment_note_id').notNull(),
+        text: text('text').notNull(),
+        writtenBy: text('written_by').notNull(), // user.id
+        writtenAt: integer('written_at', { mode: 'timestamp_ms' }).notNull(),
+    },
+    (t) => [index('amendments_note_idx').on(t.treatmentNoteId, t.writtenAt)],
+);
